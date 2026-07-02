@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+
+data/processed/
+outputs/
+data/raw/*
+data/annotations/*
+!data/raw/case_input.txt
+!data/annotations/gold_sample.jsonl
+
+*.pt
+*.ckpt
+*.log
+
+.env
+.venv/
+venv/
