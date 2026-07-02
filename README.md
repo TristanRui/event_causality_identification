@@ -2,9 +2,11 @@
 
 This repository contains the final five-fold event causality identification pipeline for DC-MCPG extraction.
 
-## Data Notice
+## Data Availability
 
-Aviation engine domain knowledge, raw maintenance records, and annotated case examples are confidential. This repository therefore does not provide sample cases, raw records, or gold annotations. The files under `data/raw/` and `data/annotations/` are empty placeholders only.
+The maintenance records and gold annotations used in the manuscript contain aviation engine domain knowledge and cannot be redistributed. The repository therefore keeps only empty placeholder files under `data/raw/` and `data/annotations/`.
+
+To support independent reuse, the expected input schema is documented below with a synthetic non-aviation toy record. This toy record is only a format illustration. It is not part of the manuscript dataset and is not used for the reported results.
 
 ## Contents
 
@@ -18,6 +20,54 @@ Aviation engine domain knowledge, raw maintenance records, and annotated case ex
 - `scripts/06_decode_relation_graph.py`: decode relation graphs for all five folds.
 - `scripts/07_eval_process_level_utility.py`: evaluate process-level utility.
 - `scripts/run_pipeline.py`: run the full five-fold pipeline.
+
+## Input Format
+
+Raw input is document-level: place one complete maintenance record in each `.txt` file under `data/raw/`. The raw preparation script reads every non-empty `.txt` file as one document and does not split documents by blank lines or project-specific markers.
+
+For training and evaluation, provide `data/annotations/gold_sample.jsonl`. Each line is one JSON object with at least:
+
+- `doc_id`: document identifier.
+- `title`: optional document title.
+- `category`: optional document category.
+- `text`: the full document text.
+- `event_mentions`: character-level event spans.
+- `relations`: directed typed edges between event IDs.
+- `sections`: optional section spans. If omitted, the code builds text-block section and bridge views automatically.
+
+Event spans use zero-based, end-exclusive character offsets into `text`. Event types must be one of `PHENOMENON`, `FAILURE`, `ROOT_CAUSE`, `ACTION`, or `VERIFICATION`. Relation types must be one of `CAUSE`, `TEMPORAL`, `TREAT`, or `VERIFY`.
+
+Example raw text file, shown only for format:
+
+```text
+Device A showed unstable output during startup. The controller state indicated an over-temperature fault. The inspection found that the cooling inlet was blocked by dust. The technician cleaned the inlet and restarted the device. The output returned to normal during verification.
+```
+
+Matching annotation object, formatted for readability. In `gold_sample.jsonl`, store it as one JSON object per line:
+
+```json
+{
+  "doc_id": "toy_001",
+  "title": "Synthetic maintenance record",
+  "category": "toy",
+  "text": "Device A showed unstable output during startup. The controller state indicated an over-temperature fault. The inspection found that the cooling inlet was blocked by dust. The technician cleaned the inlet and restarted the device. The output returned to normal during verification.",
+  "event_mentions": [
+    {"event_id": "E1", "type": "PHENOMENON", "start": 16, "end": 46, "text": "unstable output during startup"},
+    {"event_id": "E2", "type": "FAILURE", "start": 82, "end": 104, "text": "over-temperature fault"},
+    {"event_id": "E3", "type": "ROOT_CAUSE", "start": 136, "end": 169, "text": "cooling inlet was blocked by dust"},
+    {"event_id": "E4", "type": "ACTION", "start": 186, "end": 228, "text": "cleaned the inlet and restarted the device"},
+    {"event_id": "E5", "type": "VERIFICATION", "start": 234, "end": 279, "text": "output returned to normal during verification"}
+  ],
+  "relations": [
+    {"relation_id": "R1", "head": "E3", "tail": "E2", "type": "CAUSE"},
+    {"relation_id": "R2", "head": "E2", "tail": "E1", "type": "CAUSE"},
+    {"relation_id": "R3", "head": "E4", "tail": "E3", "type": "TREAT"},
+    {"relation_id": "R4", "head": "E5", "tail": "E4", "type": "VERIFY"}
+  ]
+}
+```
+
+The final manuscript pipeline validates the private dataset statistics by default: 286 documents, 5857 event nodes, and 5884 relation edges with the published type distributions. For format checks on another private dataset, set `VALIDATE_MANUSCRIPT_DATASET=0`; the single toy record above is not sufficient for five-fold model training.
 
 ## Run
 
