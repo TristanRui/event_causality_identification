@@ -6,7 +6,7 @@ This repository contains the final five-fold event causality identification pipe
 
 The maintenance records and gold annotations used in the manuscript contain aviation engine domain knowledge and cannot be redistributed. The repository therefore keeps only empty placeholder files under `data/raw/` and `data/annotations/`.
 
-To support independent reuse, the expected input schema is documented below with a synthetic non-aviation toy record. This toy record is only a format illustration. It is not part of the manuscript dataset and is not used for the reported results.
+To support independent reuse, the expected input schema is documented below. The placeholders are format descriptions only. They are not samples from the manuscript dataset and are not used for the reported results.
 
 ## Contents
 
@@ -37,37 +37,56 @@ For training and evaluation, provide `data/annotations/gold_sample.jsonl`. Each 
 
 Event spans use zero-based, end-exclusive character offsets into `text`. Event types must be one of `PHENOMENON`, `FAILURE`, `ROOT_CAUSE`, `ACTION`, or `VERIFICATION`. Relation types must be one of `CAUSE`, `TEMPORAL`, `TREAT`, or `VERIFY`.
 
-Example raw text file, shown only for format:
+Raw files should contain complete document-level records. Each document should include the information needed to identify:
 
-```text
-Device A showed unstable output during startup. The controller state indicated an over-temperature fault. The inspection found that the cooling inlet was blocked by dust. The technician cleaned the inlet and restarted the device. The output returned to normal during verification.
-```
+- abnormal phenomena observed in the record;
+- failure states, if explicitly described;
+- root causes or diagnostic conclusions;
+- corrective actions;
+- verification evidence after treatment.
 
-Matching annotation object, formatted for readability. In `gold_sample.jsonl`, store it as one JSON object per line:
+The gold annotation file should use the following shape. The `text` value is the same complete document text as the corresponding raw file. Offsets are zero-based and end-exclusive character offsets into `text`.
 
-```json
+```jsonc
 {
-  "doc_id": "toy_001",
-  "title": "Synthetic maintenance record",
-  "category": "toy",
-  "text": "Device A showed unstable output during startup. The controller state indicated an over-temperature fault. The inspection found that the cooling inlet was blocked by dust. The technician cleaned the inlet and restarted the device. The output returned to normal during verification.",
+  "doc_id": "<document_id>",
+  "title": "<optional_title>",
+  "category": "<optional_category>",
+  "text": "<complete_document_text>",
   "event_mentions": [
-    {"event_id": "E1", "type": "PHENOMENON", "start": 16, "end": 46, "text": "unstable output during startup"},
-    {"event_id": "E2", "type": "FAILURE", "start": 82, "end": 104, "text": "over-temperature fault"},
-    {"event_id": "E3", "type": "ROOT_CAUSE", "start": 136, "end": 169, "text": "cooling inlet was blocked by dust"},
-    {"event_id": "E4", "type": "ACTION", "start": 186, "end": 228, "text": "cleaned the inlet and restarted the device"},
-    {"event_id": "E5", "type": "VERIFICATION", "start": 234, "end": 279, "text": "output returned to normal during verification"}
+    {"event_id": "E1", "type": "PHENOMENON", "start": <start_offset>, "end": <end_offset>, "text": "<phenomenon_span_text>"},
+    {"event_id": "E2", "type": "FAILURE", "start": <start_offset>, "end": <end_offset>, "text": "<failure_span_text>"},
+    {"event_id": "E3", "type": "ROOT_CAUSE", "start": <start_offset>, "end": <end_offset>, "text": "<root_cause_span_text>"},
+    {"event_id": "E4", "type": "ACTION", "start": <start_offset>, "end": <end_offset>, "text": "<action_span_text>"},
+    {"event_id": "E5", "type": "VERIFICATION", "start": <start_offset>, "end": <end_offset>, "text": "<verification_span_text>"}
   ],
   "relations": [
-    {"relation_id": "R1", "head": "E3", "tail": "E2", "type": "CAUSE"},
-    {"relation_id": "R2", "head": "E2", "tail": "E1", "type": "CAUSE"},
-    {"relation_id": "R3", "head": "E4", "tail": "E3", "type": "TREAT"},
-    {"relation_id": "R4", "head": "E5", "tail": "E4", "type": "VERIFY"}
-  ]
+    {"relation_id": "R1", "head": "<ROOT_CAUSE_EVENT_ID>", "tail": "<FAILURE_OR_PHENOMENON_EVENT_ID>", "type": "CAUSE"},
+    {"relation_id": "R2", "head": "<FAILURE_EVENT_ID>", "tail": "<PHENOMENON_EVENT_ID>", "type": "CAUSE"},
+    {"relation_id": "R3", "head": "<ACTION_EVENT_ID>", "tail": "<PHENOMENON_OR_FAILURE_OR_ROOT_CAUSE_EVENT_ID>", "type": "TREAT"},
+    {"relation_id": "R4", "head": "<VERIFICATION_EVENT_ID>", "tail": "<ACTION_OR_PHENOMENON_OR_FAILURE_EVENT_ID>", "type": "VERIFY"},
+    {"relation_id": "R5", "head": "<ACTION_EVENT_ID>", "tail": "<ACTION_EVENT_ID>", "type": "TEMPORAL"},
+    {"relation_id": "R6", "head": "<VERIFICATION_EVENT_ID>", "tail": "<VERIFICATION_EVENT_ID>", "type": "TEMPORAL"}
+  ],
+  "sections": {
+    "<optional_section_key>": {
+      "name": "<section_name>",
+      "start": <start_offset>,
+      "end": <end_offset>,
+      "text": "<section_text>"
+    }
+  }
 }
 ```
 
-The final manuscript pipeline validates the private dataset statistics by default: 286 documents, 5857 event nodes, and 5884 relation edges with the published type distributions. For format checks on another private dataset, set `VALIDATE_MANUSCRIPT_DATASET=0`; the single toy record above is not sufficient for five-fold model training.
+The relation directions must follow the manuscript schema:
+
+- `CAUSE`: `ROOT_CAUSE -> FAILURE`, `ROOT_CAUSE -> PHENOMENON`, or `FAILURE -> PHENOMENON`.
+- `TREAT`: `ACTION -> PHENOMENON`, `ACTION -> FAILURE`, or `ACTION -> ROOT_CAUSE`.
+- `VERIFY`: `VERIFICATION -> ACTION`, `VERIFICATION -> PHENOMENON`, or `VERIFICATION -> FAILURE`.
+- `TEMPORAL`: `ACTION -> ACTION` or `VERIFICATION -> VERIFICATION`.
+
+The final manuscript pipeline validates the private dataset statistics by default: 286 documents, 5857 event nodes, and 5884 relation edges with the published type distributions. For format checks on another private dataset, set `VALIDATE_MANUSCRIPT_DATASET=0`; a small placeholder-style file is not sufficient for five-fold model training.
 
 ## Run
 
